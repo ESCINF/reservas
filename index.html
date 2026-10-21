@@ -1,0 +1,209 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ocupación de Aulas | ESCINF</title>
+  <style>
+    :root {
+      --rojo: #b5121b;
+      --fondo: #f4f6f8;
+      --texto: #252a34;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      color: var(--texto);
+      background: var(--fondo);
+    }
+
+    header {
+      background: var(--rojo);
+      color: white;
+      padding: 24px 20px;
+    }
+
+    header h1 { margin: 0 0 8px; font-size: 26px; }
+    header p { margin: 0; }
+
+    main {
+      max-width: 1100px;
+      margin: 28px auto;
+      padding: 0 16px;
+    }
+
+    .panel {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px #0000000c;
+      margin-bottom: 20px;
+    }
+
+    .filtros {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+    }
+
+    label { display: block; font-weight: bold; margin-bottom: 7px; }
+
+    select {
+      width: 100%;
+      padding: 11px;
+      border: 1px solid #cbd0d8;
+      border-radius: 7px;
+      background: white;
+      font-size: 15px;
+    }
+
+    .tabla-contenedor { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 540px;
+    }
+
+    th, td {
+      padding: 13px;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    th { background: #f1f2f4; }
+
+    .ocupada { color: #9e2020; font-weight: bold; }
+    .libre { color: #187344; font-weight: bold; }
+
+    footer {
+      text-align: center;
+      padding: 24px;
+      color: #626976;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Ocupación de Aulas</h1>
+    <p>Escuela de Informática · Universidad Nacional</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Consulta de espacios</h2>
+      <p>Selecciona un día y un edificio para consultar los horarios.</p>
+
+      <div class="filtros">
+        <div>
+          <label for="dia">Día</label>
+          <select id="dia">
+            <option value="Todos">Todos los días</option>
+            <option>Lunes</option>
+            <option>Martes</option>
+            <option>Miércoles</option>
+            <option>Jueves</option>
+            <option>Viernes</option>
+          </select>
+        </div>
+        <div>
+          <label for="edificio">Edificio</label>
+          <select id="edificio">
+            <option value="Todos">Todos los edificios</option>
+            <option>Edificio 1</option>
+            <option>Edificio 2</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Horario de aulas</h2>
+      <p id="aviso">Datos de demostración: aún no son horarios oficiales.</p>
+      <div class="tabla-contenedor">
+        <table>
+          <thead>
+            <tr>
+              <th>Día</th>
+              <th>Edificio</th>
+              <th>Aula</th>
+              <th>Horario</th>
+              <th>Actividad</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="horarios"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Sistema de consulta de aulas · ESCINF
+  </footer>
+
+  <script>
+    const datos = [
+      {dia:"Lunes", edificio:"Edificio 1", aula:"Aula 1",
+       horario:"08:00–10:00", actividad:"Clase de ejemplo", estado:"Ocupada"},
+      {dia:"Lunes", edificio:"Edificio 1", aula:"Aula 2",
+       horario:"08:00–10:00", actividad:"", estado:"Libre"},
+      {dia:"Martes", edificio:"Edificio 2", aula:"Laboratorio 1",
+       horario:"10:00–12:00", actividad:"Práctica de ejemplo", estado:"Ocupada"},
+      {dia:"Miércoles", edificio:"Edificio 1", aula:"Aula 1",
+       horario:"13:00–15:00", actividad:"", estado:"Libre"},
+      {dia:"Viernes", edificio:"Edificio 2", aula:"Laboratorio 1",
+       horario:"08:00–10:00", actividad:"Clase de ejemplo", estado:"Ocupada"}
+    ];
+
+    const dia = document.getElementById("dia");
+    const edificio = document.getElementById("edificio");
+    const cuerpo = document.getElementById("horarios");
+
+    function mostrarHorarios() {
+      const filtrados = datos.filter(d =>
+        (dia.value === "Todos" || d.dia === dia.value) &&
+        (edificio.value === "Todos" || d.edificio === edificio.value)
+      );
+
+      cuerpo.replaceChildren();
+
+      filtrados.forEach(d => {
+        const fila = document.createElement("tr");
+
+        [d.dia, d.edificio, d.aula, d.horario,
+         d.actividad || "—", d.estado].forEach((valor, i) => {
+          const celda = document.createElement("td");
+          celda.textContent = valor;
+
+          if (i === 5) {
+            celda.className = d.estado === "Libre" ? "libre" : "ocupada";
+          }
+
+          fila.appendChild(celda);
+        });
+
+        cuerpo.appendChild(fila);
+      });
+
+      if (filtrados.length === 0) {
+        const fila = document.createElement("tr");
+        const celda = document.createElement("td");
+        celda.colSpan = 6;
+        celda.textContent = "No hay horarios para estos filtros.";
+        fila.appendChild(celda);
+        cuerpo.appendChild(fila);
+      }
+    }
+
+    dia.addEventListener("change", mostrarHorarios);
+    edificio.addEventListener("change", mostrarHorarios);
+    mostrarHorarios();
+  </script>
+</body>
+</html>
