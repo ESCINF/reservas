@@ -374,23 +374,71 @@
     opcion.textContent = texto;
     select.appendChild(opcion);
   }
-
+  
+  let verificandoAdministrador = false;
+  
   async function verificarAdministrador() {
-    const { data: sesionData, error: errorSesion } =
-      await db.auth.getSession();
+  const { data: sesionData, error: errorSesion } =
+    await db.auth.getSession();
 
-    if (errorSesion) throw errorSesion;
+  if (errorSesion) throw errorSesion;
 
-    const sesion = sesionData.session;
+  const sesion = sesionData.session;
 
-    $("login").classList.add("oculto");
+  // Ocultar ambos paneles mientras se determina el acceso.
+  $("login").classList.add("oculto");
+  $("administracion").classList.add("oculto");
+
+  if (!sesion) {
+    $("login").classList.remove("oculto");
+    mensaje("Iniciá sesión para administrar los horarios.");
+    return;
+  }
+
+  // Consultar los permisos reales del usuario en Supabase.
+  const { data: esAdmin, error } =
+    await db.rpc("es_administrador");
+
+  if (error) throw error;
+
+  if (esAdmin !== true) {
+    // Nunca mostrar el panel a una cuenta no autorizada.
     $("administracion").classList.add("oculto");
+    $("login").classList.remove("oculto");
 
-    if (!sesion) {
-      $("login").classList.remove("oculto");
-      mensaje("Iniciá sesión para administrar los horarios.");
-      return;
+    mensaje(
+      "Tu cuenta no está autorizada para administrar este sistema."
+    );
+
+    // Cerrar únicamente la sesión local. Un fallo al cerrar
+    // la sesión no debe impedir mostrar el mensaje de rechazo.
+    try {
+      await db.auth.signOut({ scope: "local" });
+    } catch (errorCierre) {
+      console.warn(
+        "No se pudo cerrar la sesión local:",
+        errorCierre.message
+      );
     }
+
+    // Mantener visible el rechazo de acceso.
+    $("administracion").classList.add("oculto");
+    $("login").classList.remove("oculto");
+    mensaje(
+      "Tu cuenta no está autorizada para administrar este sistema."
+    );
+
+    return;
+  }
+
+  $("usuarioActual").textContent =
+    "Sesión: " + sesion.user.email;
+
+  $("administracion").classList.remove("oculto");
+  mensaje("Acceso administrativo autorizado.");
+
+  await cargarDatos();
+}
 
     // La función se ejecuta con la identidad autenticada.
     const { data: esAdmin, error } =
@@ -788,12 +836,6 @@
   $("filtroDia").addEventListener("change", mostrarHorarios);
   $("btnActualizar").addEventListener("click", cargarDatos);
 
-  db.auth.onAuthStateChange(() => {
-    // Evitar operaciones complejas dentro del callback de autenticación.
-    setTimeout(() => verificarAdministrador().catch(error => {
-      mensaje("Error de sesión: " + error.message);
-    }), 0);
-  });
 
   verificarAdministrador().catch(error => {
     mensaje("Error al iniciar el panel: " + error.message);
