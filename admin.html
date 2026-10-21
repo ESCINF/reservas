@@ -443,29 +443,6 @@ return;
   await cargarDatos();
 }
 
-    // La función se ejecuta con la identidad autenticada.
-    const { data: esAdmin, error } =
-      await db.rpc("es_administrador");
-
-    if (error) throw error;
-
-    
-    if (!esAdmin) {
-      // Mostrar primero el rechazo de acceso.
-      $("administracion").classList.add("oculto");
-      $("login").classList.remove("oculto");
-      mensaje("Tu cuenta no está autorizada para administrar este sistema.");
-    
-      // El cierre de sesión no debe impedir mostrar el mensaje.
-      try {
-        await db.auth.signOut();
-      } catch (error) {
-        console.error("No se pudo cerrar la sesión:", error);
-      }
-    
-      return;
-    }
-
 
     $("usuarioActual").textContent =
       "Sesión: " + sesion.user.email;
