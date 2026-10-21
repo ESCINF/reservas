@@ -402,34 +402,37 @@
   if (error) throw error;
 
   if (esAdmin !== true) {
-    // Nunca mostrar el panel a una cuenta no autorizada.
-    $("administracion").classList.add("oculto");
-    $("login").classList.remove("oculto");
+  // Mantener oculto el panel administrativo.
+  $("administracion").classList.add("oculto");
+  $("login").classList.remove("oculto");
 
-    mensaje(
-      "Tu cuenta no está autorizada para administrar este sistema."
-    );
 
-    // Cerrar únicamente la sesión local. Un fallo al cerrar
-    // la sesión no debe impedir mostrar el mensaje de rechazo.
-    try {
-      await db.auth.signOut({ scope: "local" });
-    } catch (errorCierre) {
-      console.warn(
-        "No se pudo cerrar la sesión local:",
-        errorCierre.message
-      );
-    }
+// Mostrar una ventana que el usuario debe aceptar.
+alert(
+"Acceso denegado\n\n" +
+"Tu cuenta no está autorizada para administrar " +
+"este sistema.\n\n" +
+"Si considerás que deberías tener acceso, " +
+"contactá con la persona administradora."
+);
 
-    // Mantener visible el rechazo de acceso.
-    $("administracion").classList.add("oculto");
-    $("login").classList.remove("oculto");
-    mensaje(
-      "Tu cuenta no está autorizada para administrar este sistema."
-    );
+// Cerrar la sesión local sin depender del servidor.
+try {
+await db.auth.signOut({ scope: "local" });
+} catch (errorCierre) {
+console.warn(
+"No se pudo cerrar la sesión local:",
+errorCierre.message
+);
+}
 
-    return;
-  }
+// Mantener el formulario visible después de aceptar.
+$("administracion").classList.add("oculto");
+$("login").classList.remove("oculto");
+mensaje("Iniciá sesión con una cuenta autorizada.");
+
+return;
+}
 
   $("usuarioActual").textContent =
     "Sesión: " + sesion.user.email;
