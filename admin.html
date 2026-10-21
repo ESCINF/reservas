@@ -375,8 +375,6 @@
     select.appendChild(opcion);
   }
   
-  let verificandoAdministrador = false;
-  
   async function verificarAdministrador() {
   const { data: sesionData, error: errorSesion } =
     await db.auth.getSession();
@@ -443,15 +441,6 @@ return;
   await cargarDatos();
 }
 
-
-    $("usuarioActual").textContent =
-      "Sesión: " + sesion.user.email;
-
-    $("administracion").classList.remove("oculto");
-    mensaje("Acceso administrativo autorizado.");
-
-    await cargarDatos();
-  }
 
   $("formLogin").addEventListener("submit", async evento => {
     evento.preventDefault();
