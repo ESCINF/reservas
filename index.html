@@ -160,14 +160,25 @@
 
   let edificios = [];
   let aulas = [];
+  let horarios = [];
+
+  const dias = {
+    1: "Lunes",
+    2: "Martes",
+    3: "Miércoles",
+    4: "Jueves",
+    5: "Viernes",
+    6: "Sábado",
+    7: "Domingo"
+  };
 
   async function consultarTabla(tabla, consulta) {
     const respuesta = await fetch(
       `${SUPABASE_URL}/rest/v1/${tabla}?${consulta}`,
       {
         headers: {
-          "apikey": SUPABASE_KEY,
-          "Authorization": `Bearer ${SUPABASE_KEY}`
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`
         }
       }
     );
@@ -178,33 +189,41 @@
       );
     }
 
-    return await respuesta.json();
+    return respuesta.json();
   }
 
   async function cargarDatos() {
     try {
-      aviso.textContent = "Conectando con la base de datos...";
+      aviso.textContent = "Cargando edificios, aulas y horarios...";
 
-      const [listaEdificios, listaAulas] = await Promise.all([
-        consultarTabla(
-          "edificios",
-          "select=id,nombre&activo=eq.true&order=nombre.asc"
-        ),
-        consultarTabla(
-          "aulas",
-          "select=id,nombre,capacidad,edificio_id&activo=eq.true&order=nombre.asc"
-        )
-      ]);
+      const [listaEdificios, listaAulas, listaHorarios] =
+        await Promise.all([
+          consultarTabla(
+            "edificios",
+            "select=id,nombre&activo=eq.true&order=nombre.asc"
+          ),
+          consultarTabla(
+            "aulas",
+            "select=id,nombre,capacidad,edificio_id&activo=eq.true&order=nombre.asc"
+          ),
+          consultarTabla(
+            "horarios",
+            "select=id,aula_id,dia_semana,hora_inicio,hora_fin,actividad,responsable,fecha_inicio,fecha_fin,aulas(id,nombre,edificio_id,edificios(id,nombre))&publicado=eq.true&order=dia_semana.asc,hora_inicio.asc"
+          )
+        ]);
 
       edificios = listaEdificios;
       aulas = listaAulas;
+      horarios = listaHorarios;
 
+      // Actualizar el selector de edificios.
+      const edificioAnterior = edificio.value;
       edificio.replaceChildren();
 
-      const todos = document.createElement("option");
-      todos.value = "Todos";
-      todos.textContent = "Todos los edificios";
-      edificio.appendChild(todos);
+      const opcionTodos = document.createElement("option");
+      opcionTodos.value = "Todos";
+      opcionTodos.textContent = "Todos los edificios";
+      edificio.appendChild(opcionTodos);
 
       edificios.forEach(e => {
         const opcion = document.createElement("option");
@@ -213,40 +232,67 @@
         edificio.appendChild(opcion);
       });
 
-      mostrarAulas();
+      if ([...edificio.options].some(
+        o => o.value === edificioAnterior
+      )) {
+        edificio.value = edificioAnterior;
+      }
 
-      aviso.textContent =
-        `Conexión correcta. ${edificios.length} edificio(s) y ` +
-        `${aulas.length} aula(s) disponibles. ` +
-        "Los horarios aún no se han conectado.";
+      // Activar el filtro por día.
+      dia.disabled = false;
+
+      mostrarHorarios();
+
     } catch (error) {
-      console.error(error);
+      console.error("Error cargando datos:", error);
       aviso.textContent =
-        "No se pudieron cargar los datos. Revisá la configuración " +
-        "y los permisos de Supabase.";
+        "No fue posible cargar los horarios. Revisá la conexión y los permisos de Supabase.";
+      cuerpo.replaceChildren();
     }
   }
 
-  function mostrarAulas() {
+  function mostrarHorarios() {
     cuerpo.replaceChildren();
 
-    const aulasFiltradas = aulas.filter(a =>
-      edificio.value === "Todos" ||
-      String(a.edificio_id) === edificio.value
-    );
+    const filtrados = horarios.filter(h => {
+      const aula = h.aulas;
 
-    aulasFiltradas.forEach(a => {
-      const e = edificios.find(x => x.id === a.edificio_id);
+      if (!aula) return false;
+
+      const edificioAula = aula.edificios;
+
+      const coincideDia =
+        dia.value === "Todos" ||
+        dias[h.dia_semana] === dia.value;
+
+      const coincideEdificio =
+        edificio.value === "Todos" ||
+        String(aula.edificio_id) === edificio.value;
+
+      const hoy = new Date().toISOString().slice(0, 10);
+
+      const coincideFecha =
+        (!h.fecha_inicio || hoy >= h.fecha_inicio) &&
+        (!h.fecha_fin || hoy <= h.fecha_fin);
+
+      return coincideDia && coincideEdificio && coincideFecha;
+    });
+
+    filtrados.forEach(h => {
+      const aula = h.aulas;
+      const edificioAula = aula.edificios;
       const fila = document.createElement("tr");
 
-      [
-        "—",
-        e ? e.nombre : "—",
-        a.nombre,
-        "—",
-        a.capacidad ? `Capacidad: ${a.capacidad}` : "—",
-        "Registrada"
-      ].forEach(valor => {
+      const valores = [
+        dias[h.dia_semana] || "Sin día",
+        edificioAula ? edificioAula.nombre : "—",
+        aula.nombre,
+        `${String(h.hora_inicio).slice(0, 5)}–${String(h.hora_fin).slice(0, 5)}`,
+        h.actividad || "Actividad no especificada",
+        "Programada"
+      ];
+
+      valores.forEach(valor => {
         const celda = document.createElement("td");
         celda.textContent = valor;
         fila.appendChild(celda);
@@ -255,22 +301,29 @@
       cuerpo.appendChild(fila);
     });
 
-    if (aulasFiltradas.length === 0) {
+    if (filtrados.length === 0) {
       const fila = document.createElement("tr");
       const celda = document.createElement("td");
+
       celda.colSpan = 6;
-      celda.textContent = "No hay aulas registradas.";
+      celda.textContent =
+        "No hay horarios publicados para los filtros seleccionados.";
+
       fila.appendChild(celda);
       cuerpo.appendChild(fila);
     }
+
+    aviso.textContent =
+      `${filtrados.length} horario(s) encontrado(s). ` +
+      "Solo se muestran actividades publicadas.";
   }
 
-  edificio.addEventListener("change", mostrarAulas);
+  dia.addEventListener("change", mostrarHorarios);
+  edificio.addEventListener("change", mostrarHorarios);
 
-  // El prototipo todavía no consulta horarios reales.
-  dia.disabled = true;
   cargarDatos();
 </script>
+
 
 </body>
 </html>
