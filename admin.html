@@ -398,12 +398,23 @@
 
     if (error) throw error;
 
+    
     if (!esAdmin) {
-      await db.auth.signOut();
+      // Mostrar primero el rechazo de acceso.
+      $("administracion").classList.add("oculto");
       $("login").classList.remove("oculto");
       mensaje("Tu cuenta no está autorizada para administrar este sistema.");
+    
+      // El cierre de sesión no debe impedir mostrar el mensaje.
+      try {
+        await db.auth.signOut();
+      } catch (error) {
+        console.error("No se pudo cerrar la sesión:", error);
+      }
+    
       return;
     }
+
 
     $("usuarioActual").textContent =
       "Sesión: " + sesion.user.email;
