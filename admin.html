@@ -1,0 +1,792 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Administración de aulas | ESCINF</title>
+
+  <style>
+    :root {
+      --rojo: #b5121b;
+      --fondo: #f4f6f8;
+      --texto: #252a34;
+      --borde: #dfe3e8;
+      --verde: #187344;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--fondo);
+      color: var(--texto);
+      font-family: Arial, sans-serif;
+    }
+
+    header {
+      padding: 22px;
+      color: white;
+      background: var(--rojo);
+    }
+
+    header h1 { margin: 0 0 8px; font-size: 25px; }
+    header p { margin: 0; }
+
+    main {
+      max-width: 1100px;
+      margin: 25px auto;
+      padding: 0 16px;
+    }
+
+    .panel {
+      padding: 22px;
+      margin-bottom: 20px;
+      background: white;
+      border: 1px solid var(--borde);
+      border-radius: 12px;
+    }
+
+    h2 { margin-top: 0; font-size: 21px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    input, select, button {
+      width: 100%;
+      padding: 11px;
+      border: 1px solid #cbd0d8;
+      border-radius: 7px;
+      font: inherit;
+    }
+
+    input, select { background: white; color: var(--texto); }
+
+    button {
+      cursor: pointer;
+      border: 0;
+      background: var(--rojo);
+      color: white;
+      font-weight: bold;
+    }
+
+    button:disabled { opacity: .55; cursor: not-allowed; }
+
+    button.secundario {
+      color: var(--texto);
+      background: #e9edf2;
+    }
+
+    button.peligro { background: #8e2020; }
+
+    button.pequeno {
+      width: auto;
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+
+    .acciones {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-top: 17px;
+    }
+
+    .acciones button { flex: 1 1 130px; }
+
+    .oculto { display: none !important; }
+
+    .mensaje {
+      margin: 14px 0;
+      padding: 12px;
+      border-radius: 7px;
+      background: #eef2f6;
+      overflow-wrap: anywhere;
+    }
+
+    .tabla { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      min-width: 780px;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--borde);
+      vertical-align: top;
+    }
+
+    th { background: #f1f2f4; }
+
+    .estado-publicado { color: var(--verde); font-weight: bold; }
+    .estado-borrador { color: #8b4c00; font-weight: bold; }
+
+    .ayuda {
+      color: #626976;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    footer {
+      text-align: center;
+      padding: 22px;
+      color: #626976;
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>Administración de ocupación de aulas</h1>
+  <p>Escuela de Informática · Universidad Nacional</p>
+</header>
+
+<main>
+  <div id="mensaje" class="mensaje" role="status" aria-live="polite">
+    Iniciando aplicación...
+  </div>
+
+  <section id="login" class="panel oculto">
+    <h2>Acceso administrativo</h2>
+    <p>Ingresá con tu cuenta autorizada de Supabase.</p>
+
+    <form id="formLogin">
+      <div style="margin-bottom:14px">
+        <label for="correo">Correo electrónico</label>
+        <input id="correo" type="email" autocomplete="username"
+               required>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label for="contrasena">Contraseña</label>
+        <input id="contrasena" type="password"
+               autocomplete="current-password" required>
+      </div>
+
+      <button id="btnLogin" type="submit">Iniciar sesión</button>
+    </form>
+
+    <p class="ayuda">
+      El acceso requiere una cuenta autorizada en Supabase.
+      No se puede crear una cuenta administrativa desde esta página.
+    </p>
+  </section>
+
+  <section id="administracion" class="oculto">
+    <div class="panel">
+      <div style="display:flex; gap:12px; align-items:center;
+                  justify-content:space-between; flex-wrap:wrap">
+        <div>
+          <h2>Panel de administración</h2>
+          <div id="usuarioActual" class="ayuda"></div>
+        </div>
+        <button id="btnSalir" class="secundario"
+                style="width:auto">Cerrar sesión</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 id="tituloFormulario">Registrar horario</h2>
+
+      <form id="formHorario">
+        <input id="horarioId" type="hidden">
+
+        <div class="grid">
+          <div>
+            <label for="edificio">Edificio</label>
+            <select id="edificio" required></select>
+          </div>
+
+          <div>
+            <label for="aula">Aula</label>
+            <select id="aula" required></select>
+          </div>
+
+          <div>
+            <label for="dia">Día de la semana</label>
+            <select id="dia" required>
+              <option value="1">Lunes</option>
+              <option value="2">Martes</option>
+              <option value="3">Miércoles</option>
+              <option value="4">Jueves</option>
+              <option value="5">Viernes</option>
+              <option value="6">Sábado</option>
+              <option value="7">Domingo</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="inicio">Hora de inicio</label>
+            <input id="inicio" type="time" required>
+          </div>
+
+          <div>
+            <label for="fin">Hora de finalización</label>
+            <input id="fin" type="time" required>
+          </div>
+
+          <div>
+            <label for="actividad">Actividad o curso</label>
+            <input id="actividad" type="text" maxlength="200"
+                   required>
+          </div>
+
+          <div>
+            <label for="responsable">Responsable (opcional)</label>
+            <input id="responsable" type="text" maxlength="150">
+          </div>
+
+          <div>
+            <label for="fechaInicio">Fecha inicial (opcional)</label>
+            <input id="fechaInicio" type="date">
+          </div>
+
+          <div>
+            <label for="fechaFin">Fecha final (opcional)</label>
+            <input id="fechaFin" type="date">
+          </div>
+        </div>
+
+        <p class="ayuda">
+          Si dejás las fechas vacías, el horario no tendrá límites
+          de vigencia por fecha. El día y las horas se aplicarán
+          según el horario semanal.
+        </p>
+
+        <div style="margin-top:16px">
+          <label>
+            <input id="publicado" type="checkbox" checked
+                   style="width:auto; margin-right:6px">
+            Publicar horario para consulta pública
+          </label>
+        </div>
+
+        <div class="acciones">
+          <button id="btnGuardar" type="submit">Guardar horario</button>
+          <button id="btnCancelar" class="secundario oculto"
+                  type="button">Cancelar edición</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2>Horarios registrados</h2>
+
+      <div class="grid">
+        <div>
+          <label for="filtroEdificio">Filtrar por edificio</label>
+          <select id="filtroEdificio">
+            <option value="Todos">Todos los edificios</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="filtroDia">Filtrar por día</label>
+          <select id="filtroDia">
+            <option value="Todos">Todos los días</option>
+            <option value="1">Lunes</option>
+            <option value="2">Martes</option>
+            <option value="3">Miércoles</option>
+            <option value="4">Jueves</option>
+            <option value="5">Viernes</option>
+            <option value="6">Sábado</option>
+            <option value="7">Domingo</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="acciones">
+        <button id="btnActualizar" type="button"
+                class="secundario">Actualizar listado</button>
+      </div>
+
+      <div class="tabla" style="margin-top:16px">
+        <table>
+          <thead>
+            <tr>
+              <th>Día</th>
+              <th>Edificio</th>
+              <th>Aula</th>
+              <th>Horario</th>
+              <th>Actividad</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="listaHorarios"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>Panel administrativo · ESCINF</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+  // Usá los mismos valores que ya funcionan en index.html.
+  const SUPABASE_URL = "TU_PROJECT_URL";
+  const SUPABASE_KEY = "TU_PUBLISHABLE_KEY";
+
+  const { createClient } = supabase;
+
+  const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const $ = id => document.getElementById(id);
+
+  let edificios = [];
+  let aulas = [];
+  let horarios = [];
+
+  const nombresDias = {
+    1: "Lunes",
+    2: "Martes",
+    3: "Miércoles",
+    4: "Jueves",
+    5: "Viernes",
+    6: "Sábado",
+    7: "Domingo"
+  };
+
+  function mensaje(texto) {
+    $("mensaje").textContent = texto;
+  }
+
+  function agregarOpcion(select, valor, texto) {
+    const opcion = document.createElement("option");
+    opcion.value = String(valor);
+    opcion.textContent = texto;
+    select.appendChild(opcion);
+  }
+
+  async function verificarAdministrador() {
+    const { data: sesionData, error: errorSesion } =
+      await db.auth.getSession();
+
+    if (errorSesion) throw errorSesion;
+
+    const sesion = sesionData.session;
+
+    $("login").classList.add("oculto");
+    $("administracion").classList.add("oculto");
+
+    if (!sesion) {
+      $("login").classList.remove("oculto");
+      mensaje("Iniciá sesión para administrar los horarios.");
+      return;
+    }
+
+    // La función se ejecuta con la identidad autenticada.
+    const { data: esAdmin, error } =
+      await db.rpc("es_administrador");
+
+    if (error) throw error;
+
+    if (!esAdmin) {
+      await db.auth.signOut();
+      $("login").classList.remove("oculto");
+      mensaje("Tu cuenta no está autorizada para administrar este sistema.");
+      return;
+    }
+
+    $("usuarioActual").textContent =
+      "Sesión: " + sesion.user.email;
+
+    $("administracion").classList.remove("oculto");
+    mensaje("Acceso administrativo autorizado.");
+
+    await cargarDatos();
+  }
+
+  $("formLogin").addEventListener("submit", async evento => {
+    evento.preventDefault();
+
+    const boton = $("btnLogin");
+    boton.disabled = true;
+
+    try {
+      mensaje("Verificando credenciales...");
+
+      const { error } = await db.auth.signInWithPassword({
+        email: $("correo").value.trim(),
+        password: $("contrasena").value
+      });
+
+      if (error) throw error;
+
+      $("contrasena").value = "";
+      await verificarAdministrador();
+    } catch (error) {
+      mensaje("No fue posible iniciar sesión: " + error.message);
+    } finally {
+      boton.disabled = false;
+    }
+  });
+
+  $("btnSalir").addEventListener("click", async () => {
+    await db.auth.signOut();
+    $("formHorario").reset();
+    $("horarioId").value = "";
+    await verificarAdministrador();
+  });
+
+  async function cargarDatos() {
+    try {
+      mensaje("Cargando información...");
+
+      const [
+        resultadoEdificios,
+        resultadoAulas,
+        resultadoHorarios
+      ] = await Promise.all([
+        db.from("edificios")
+          .select("id,nombre,activo")
+          .order("nombre"),
+
+        db.from("aulas")
+          .select("id,nombre,edificio_id,activo")
+          .order("nombre"),
+
+        db.from("horarios")
+          .select("id,aula_id,dia_semana,hora_inicio,hora_fin,actividad,responsable,fecha_inicio,fecha_fin,publicado")
+          .order("dia_semana")
+          .order("hora_inicio")
+      ]);
+
+      if (resultadoEdificios.error) throw resultadoEdificios.error;
+      if (resultadoAulas.error) throw resultadoAulas.error;
+      if (resultadoHorarios.error) throw resultadoHorarios.error;
+
+      edificios = resultadoEdificios.data;
+      aulas = resultadoAulas.data;
+      horarios = resultadoHorarios.data;
+
+      llenarSelectores();
+      mostrarHorarios();
+
+      mensaje("Datos cargados correctamente.");
+    } catch (error) {
+      mensaje("Error al cargar datos: " + error.message);
+    }
+  }
+
+  function llenarSelectores() {
+    const selectEdificio = $("edificio");
+    const selectAula = $("aula");
+    const filtro = $("filtroEdificio");
+
+    selectEdificio.replaceChildren();
+    filtro.replaceChildren();
+    selectAula.replaceChildren();
+
+    agregarOpcion(selectEdificio, "", "Seleccioná un edificio");
+    agregarOpcion(selectAula, "", "Seleccioná un aula");
+    agregarOpcion(filtro, "Todos", "Todos los edificios");
+
+    edificios.filter(e => e.activo).forEach(e => {
+      agregarOpcion(selectEdificio, e.id, e.nombre);
+      agregarOpcion(filtro, e.id, e.nombre);
+    });
+
+    actualizarAulas();
+  }
+
+  function actualizarAulas() {
+    const selectAula = $("aula");
+    const edificioId = $("edificio").value;
+
+    selectAula.replaceChildren();
+    agregarOpcion(selectAula, "", "Seleccioná un aula");
+
+    aulas
+      .filter(a =>
+        a.activo && String(a.edificio_id) === edificioId
+      )
+      .forEach(a => agregarOpcion(selectAula, a.id, a.nombre));
+  }
+
+  $("edificio").addEventListener("change", actualizarAulas);
+
+  $("formHorario").addEventListener("submit", async evento => {
+    evento.preventDefault();
+
+    const boton = $("btnGuardar");
+    boton.disabled = true;
+
+    try {
+      const inicio = $("inicio").value;
+      const fin = $("fin").value;
+      const fechaInicio = $("fechaInicio").value || null;
+      const fechaFin = $("fechaFin").value || null;
+
+      if (fin <= inicio) {
+        throw new Error(
+          "La hora final debe ser posterior a la hora inicial."
+        );
+      }
+
+      if (fechaInicio && fechaFin && fechaFin < fechaInicio) {
+        throw new Error(
+          "La fecha final debe ser igual o posterior a la inicial."
+        );
+      }
+
+      const registro = {
+        aula_id: Number($("aula").value),
+        dia_semana: Number($("dia").value),
+        hora_inicio: inicio,
+        hora_fin: fin,
+        actividad: $("actividad").value.trim(),
+        responsable: $("responsable").value.trim() || null,
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
+        publicado: $("publicado").checked
+      };
+
+      if (!registro.aula_id || !registro.actividad) {
+        throw new Error("Seleccioná un aula e indicá la actividad.");
+      }
+
+      const id = $("horarioId").value;
+      let resultado;
+
+      if (id) {
+        resultado = await db.from("horarios")
+          .update(registro)
+          .eq("id", Number(id))
+          .select("id");
+      } else {
+        resultado = await db.from("horarios")
+          .insert(registro)
+          .select("id");
+      }
+
+      if (resultado.error) throw resultado.error;
+
+      if (!resultado.data || resultado.data.length === 0) {
+        throw new Error(
+          "No se confirmó el cambio. Verificá tus permisos."
+        );
+      }
+
+      $("formHorario").reset();
+      $("horarioId").value = "";
+      $("tituloFormulario").textContent = "Registrar horario";
+      $("btnGuardar").textContent = "Guardar horario";
+      $("btnCancelar").classList.add("oculto");
+
+      llenarSelectores();
+      await cargarDatos();
+
+      mensaje(id
+        ? "Horario actualizado correctamente."
+        : "Horario registrado correctamente."
+      );
+
+    } catch (error) {
+      mensaje("No se pudo guardar: " + error.message);
+    } finally {
+      boton.disabled = false;
+    }
+  });
+
+  $("btnCancelar").addEventListener("click", () => {
+    $("formHorario").reset();
+    $("horarioId").value = "";
+    $("tituloFormulario").textContent = "Registrar horario";
+    $("btnGuardar").textContent = "Guardar horario";
+    $("btnCancelar").classList.add("oculto");
+    actualizarAulas();
+  });
+
+  function editarHorario(id) {
+    const h = horarios.find(x => x.id === id);
+    if (!h) return;
+
+    $("horarioId").value = h.id;
+    $("edificio").value = String(
+      aulas.find(a => a.id === h.aula_id)?.edificio_id || ""
+    );
+
+    actualizarAulas();
+    $("aula").value = String(h.aula_id);
+    $("dia").value = String(h.dia_semana);
+    $("inicio").value = h.hora_inicio.slice(0, 5);
+    $("fin").value = h.hora_fin.slice(0, 5);
+    $("actividad").value = h.actividad;
+    $("responsable").value = h.responsable || "";
+    $("fechaInicio").value = h.fecha_inicio || "";
+    $("fechaFin").value = h.fecha_fin || "";
+    $("publicado").checked = h.publicado;
+
+    $("tituloFormulario").textContent = "Editar horario";
+    $("btnGuardar").textContent = "Guardar cambios";
+    $("btnCancelar").classList.remove("oculto");
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function cambiarPublicacion(id, publicado) {
+    const accion = publicado ? "publicar" : "despublicar";
+
+    if (!confirm(`¿Deseás ${accion} este horario?`)) return;
+
+    try {
+      const { data, error } = await db.from("horarios")
+        .update({ publicado })
+        .eq("id", id)
+        .select("id");
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error("No se confirmó el cambio de publicación.");
+      }
+
+      await cargarDatos();
+      mensaje("Estado de publicación actualizado.");
+    } catch (error) {
+      mensaje("No se pudo cambiar la publicación: " + error.message);
+    }
+  }
+
+  async function eliminarHorario(id) {
+    if (!confirm(
+      "¿Seguro que querés eliminar este horario? Esta acción no se puede deshacer."
+    )) return;
+
+    try {
+      const { data, error } = await db.from("horarios")
+        .delete()
+        .eq("id", id)
+        .select("id");
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error("No se confirmó la eliminación.");
+      }
+
+      await cargarDatos();
+      mensaje("Horario eliminado.");
+    } catch (error) {
+      mensaje("No se pudo eliminar: " + error.message);
+    }
+  }
+
+  function mostrarHorarios() {
+    const cuerpo = $("listaHorarios");
+    cuerpo.replaceChildren();
+
+    const filtroEdificio = $("filtroEdificio").value;
+    const filtroDia = $("filtroDia").value;
+
+    const filtrados = horarios.filter(h => {
+      const aula = aulas.find(a => a.id === h.aula_id);
+      if (!aula) return false;
+
+      return (
+        (filtroEdificio === "Todos" ||
+          String(aula.edificio_id) === filtroEdificio) &&
+        (filtroDia === "Todos" ||
+          String(h.dia_semana) === filtroDia)
+      );
+    });
+
+    filtrados.forEach(h => {
+      const aula = aulas.find(a => a.id === h.aula_id);
+      const e = edificios.find(x => x.id === aula.edificio_id);
+      const fila = document.createElement("tr");
+
+      const valores = [
+        nombresDias[h.dia_semana],
+        e ? e.nombre : "—",
+        aula.nombre,
+        `${h.hora_inicio.slice(0, 5)}–${h.hora_fin.slice(0, 5)}`,
+        h.actividad
+      ];
+
+      valores.forEach(valor => {
+        const celda = document.createElement("td");
+        celda.textContent = valor;
+        fila.appendChild(celda);
+      });
+
+      const estado = document.createElement("td");
+      estado.textContent = h.publicado ? "Publicado" : "Borrador";
+      estado.className = h.publicado
+        ? "estado-publicado" : "estado-borrador";
+      fila.appendChild(estado);
+
+      const acciones = document.createElement("td");
+      const grupo = document.createElement("div");
+      grupo.style.display = "flex";
+      grupo.style.flexWrap = "wrap";
+      grupo.style.gap = "6px";
+
+      const btnEditar = document.createElement("button");
+      btnEditar.className = "pequeno secundario";
+      btnEditar.textContent = "Editar";
+      btnEditar.addEventListener("click", () => editarHorario(h.id));
+
+      const btnPublicar = document.createElement("button");
+      btnPublicar.className = "pequeno";
+      btnPublicar.textContent = h.publicado ? "Despublicar" : "Publicar";
+      btnPublicar.addEventListener("click", () =>
+        cambiarPublicacion(h.id, !h.publicado)
+      );
+
+      const btnEliminar = document.createElement("button");
+      btnEliminar.className = "pequeno peligro";
+      btnEliminar.textContent = "Eliminar";
+      btnEliminar.addEventListener("click", () => eliminarHorario(h.id));
+
+      grupo.append(btnEditar, btnPublicar, btnEliminar);
+      acciones.appendChild(grupo);
+      fila.appendChild(acciones);
+      cuerpo.appendChild(fila);
+    });
+
+    if (!filtrados.length) {
+      const fila = document.createElement("tr");
+      const celda = document.createElement("td");
+      celda.colSpan = 7;
+      celda.textContent = "No hay horarios para estos filtros.";
+      fila.appendChild(celda);
+      cuerpo.appendChild(fila);
+    }
+  }
+
+  $("filtroEdificio").addEventListener("change", mostrarHorarios);
+  $("filtroDia").addEventListener("change", mostrarHorarios);
+  $("btnActualizar").addEventListener("click", cargarDatos);
+
+  db.auth.onAuthStateChange(() => {
+    // Evitar operaciones complejas dentro del callback de autenticación.
+    setTimeout(() => verificarAdministrador().catch(error => {
+      mensaje("Error de sesión: " + error.message);
+    }), 0);
+  });
+
+  verificarAdministrador().catch(error => {
+    mensaje("Error al iniciar el panel: " + error.message);
+  });
+</script>
+</body>
+</html>
