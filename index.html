@@ -147,63 +147,130 @@
     Sistema de consulta de aulas · ESCINF
   </footer>
 
-  <script>
-    const datos = [
-      {dia:"Lunes", edificio:"Edificio 1", aula:"Aula 1",
-       horario:"08:00–10:00", actividad:"Clase de ejemplo", estado:"Ocupada"},
-      {dia:"Lunes", edificio:"Edificio 1", aula:"Aula 2",
-       horario:"08:00–10:00", actividad:"", estado:"Libre"},
-      {dia:"Martes", edificio:"Edificio 2", aula:"Laboratorio 1",
-       horario:"10:00–12:00", actividad:"Práctica de ejemplo", estado:"Ocupada"},
-      {dia:"Miércoles", edificio:"Edificio 1", aula:"Aula 1",
-       horario:"13:00–15:00", actividad:"", estado:"Libre"},
-      {dia:"Viernes", edificio:"Edificio 2", aula:"Laboratorio 1",
-       horario:"08:00–10:00", actividad:"Clase de ejemplo", estado:"Ocupada"}
-    ];
+ 
+<script>
+  // CONFIGURACIÓN DE SUPABASE
+  const SUPABASE_URL = "PEGA_AQUI_TU_PROJECT_URL";
+  const SUPABASE_KEY = "PEGA_AQUI_TU_PUBLISHABLE_KEY";
 
-    const dia = document.getElementById("dia");
-    const edificio = document.getElementById("edificio");
-    const cuerpo = document.getElementById("horarios");
+  const dia = document.getElementById("dia");
+  const edificio = document.getElementById("edificio");
+  const cuerpo = document.getElementById("horarios");
+  const aviso = document.getElementById("aviso");
 
-    function mostrarHorarios() {
-      const filtrados = datos.filter(d =>
-        (dia.value === "Todos" || d.dia === dia.value) &&
-        (edificio.value === "Todos" || d.edificio === edificio.value)
-      );
+  let edificios = [];
+  let aulas = [];
 
-      cuerpo.replaceChildren();
-
-      filtrados.forEach(d => {
-        const fila = document.createElement("tr");
-
-        [d.dia, d.edificio, d.aula, d.horario,
-         d.actividad || "—", d.estado].forEach((valor, i) => {
-          const celda = document.createElement("td");
-          celda.textContent = valor;
-
-          if (i === 5) {
-            celda.className = d.estado === "Libre" ? "libre" : "ocupada";
-          }
-
-          fila.appendChild(celda);
-        });
-
-        cuerpo.appendChild(fila);
-      });
-
-      if (filtrados.length === 0) {
-        const fila = document.createElement("tr");
-        const celda = document.createElement("td");
-        celda.colSpan = 6;
-        celda.textContent = "No hay horarios para estos filtros.";
-        fila.appendChild(celda);
-        cuerpo.appendChild(fila);
+  async function consultarTabla(tabla, consulta) {
+    const respuesta = await fetch(
+      `${SUPABASE_URL}/rest/v1/${tabla}?${consulta}`,
+      {
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`
+        }
       }
+    );
+
+    if (!respuesta.ok) {
+      throw new Error(
+        `Error consultando ${tabla}: HTTP ${respuesta.status}`
+      );
     }
 
-    dia.addEventListener("change", mostrarHorarios);
-    edificio.addEventListener("change", mostrarHorarios);
-    mostrarHorarios();
-  </script>
+    return await respuesta.json();
+  }
+
+  async function cargarDatos() {
+    try {
+      aviso.textContent = "Conectando con la base de datos...";
+
+      const [listaEdificios, listaAulas] = await Promise.all([
+        consultarTabla(
+          "edificios",
+          "select=id,nombre&activo=eq.true&order=nombre.asc"
+        ),
+        consultarTabla(
+          "aulas",
+          "select=id,nombre,capacidad,edificio_id&activo=eq.true&order=nombre.asc"
+        )
+      ]);
+
+      edificios = listaEdificios;
+      aulas = listaAulas;
+
+      edificio.replaceChildren();
+
+      const todos = document.createElement("option");
+      todos.value = "Todos";
+      todos.textContent = "Todos los edificios";
+      edificio.appendChild(todos);
+
+      edificios.forEach(e => {
+        const opcion = document.createElement("option");
+        opcion.value = String(e.id);
+        opcion.textContent = e.nombre;
+        edificio.appendChild(opcion);
+      });
+
+      mostrarAulas();
+
+      aviso.textContent =
+        `Conexión correcta. ${edificios.length} edificio(s) y ` +
+        `${aulas.length} aula(s) disponibles. ` +
+        "Los horarios aún no se han conectado.";
+    } catch (error) {
+      console.error(error);
+      aviso.textContent =
+        "No se pudieron cargar los datos. Revisá la configuración " +
+        "y los permisos de Supabase.";
+    }
+  }
+
+  function mostrarAulas() {
+    cuerpo.replaceChildren();
+
+    const aulasFiltradas = aulas.filter(a =>
+      edificio.value === "Todos" ||
+      String(a.edificio_id) === edificio.value
+    );
+
+    aulasFiltradas.forEach(a => {
+      const e = edificios.find(x => x.id === a.edificio_id);
+      const fila = document.createElement("tr");
+
+      [
+        "—",
+        e ? e.nombre : "—",
+        a.nombre,
+        "—",
+        a.capacidad ? `Capacidad: ${a.capacidad}` : "—",
+        "Registrada"
+      ].forEach(valor => {
+        const celda = document.createElement("td");
+        celda.textContent = valor;
+        fila.appendChild(celda);
+      });
+
+      cuerpo.appendChild(fila);
+    });
+
+    if (aulasFiltradas.length === 0) {
+      const fila = document.createElement("tr");
+      const celda = document.createElement("td");
+      celda.colSpan = 6;
+      celda.textContent = "No hay aulas registradas.";
+      fila.appendChild(celda);
+      cuerpo.appendChild(fila);
+    }
+  }
+
+  edificio.addEventListener("change", mostrarAulas);
+
+  // El prototipo todavía no consulta horarios reales.
+  dia.disabled = true;
+  cargarDatos();
+</script>
+
 </body>
 </html>
